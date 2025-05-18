@@ -4,9 +4,11 @@ import { doctors } from "../assets/assets";
 export const AppContext = createContext();
 
 const AppContextProvider=(props)=>{
+    const curencySymbol='$'
 
     const value={
-        doctors
+        doctors,
+        curencySymbol
 
     }
     return(
