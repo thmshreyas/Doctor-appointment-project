@@ -22,7 +22,7 @@ import Contact from './pages/Contact'
         <Route path='/login' element={<Login />} />
         <Route path='/about' element={<About />} />
         <Route path='my-profile' element={<MyProfile />} />
-        <Route path='my-appointment' element={<MyAppointments />} />
+        <Route path='my-appointments' element={<MyAppointments />} />
         <Route path='appointment/:docID' element={<Appointment />} />
         <Route path='/contact' element={<Contact />} />
 
