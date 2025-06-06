@@ -1,20 +1,28 @@
-import { createContext } from "react";
-import { doctors } from "../assets/assets";
+import React, { createContext, useContext, useState } from 'react';
+import { doctors as staticDoctors } from '../assets/assets';
 
+// Create the context
 export const AppContext = createContext();
 
-const AppContextProvider=(props)=>{
-    const curencySymbol='$'
+// Custom hook to use the app context
+export const useApp = () => {
+  const context = useContext(AppContext);
+  if (!context) {
+    throw new Error('useApp must be used within an AppProvider');
+  }
+  return context;
+};
 
-    const value={
-        doctors,
-        curencySymbol
+// Provider component
+export const AppProvider = ({ children }) => {
+  const [doctors] = useState(staticDoctors);
+  const [user, setUser] = useState(null);
 
-    }
-    return(
-        <AppContext.Provider value={value}>
-            {props.children}
-        </AppContext.Provider>
-    )
-}
-export default AppContextProvider;
+  const value = {
+    doctors,
+    user,
+    setUser
+  };
+
+  return <AppContext.Provider value={value}>{children}</AppContext.Provider>;
+};

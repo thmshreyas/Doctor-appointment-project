@@ -1,129 +1,149 @@
-import React, { useContext, useEffect, useState } from 'react'
-import { useParams } from 'react-router-dom';
-import { AppContext } from '../context/AppContext';
-import { assets } from '../assets/assets';
-import RelatedDoctors from '../components/RelatedDoctors';
+import React, { useEffect, useState } from 'react'
+import { useParams, useNavigate } from 'react-router-dom';
+import { useApp } from '../context/AppContext';
+import { useAuth } from '../context/AuthContext';
+import axios from 'axios';
+
 const Appointment = () => {
-  const {docId} = useParams();
-  const {doctors,currencySymbol}= useContext(AppContext);
-  const daysOfWeek = ['SUN', 'MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT'];
+  const { docId } = useParams();
+  const { doctors } = useApp();
+  const navigate = useNavigate();
+  const { user } = useAuth();
   const [docInfo, setDocInfo] = useState(null);
-const [docSlots, setDocSlots] = useState([]);
-const [slotIndex, setSlotIndex] = useState(0);
-const [slotTime, setSlotTime] = useState(``);
+  const [selectedDate, setSelectedDate] = useState('');
+  const [selectedTime, setSelectedTime] = useState('');
+  const [availableSlots, setAvailableSlots] = useState([]);
+  const [error, setError] = useState('');
+  const [notification, setNotification] = useState('');
 
-  const fetchDocInfo=async()=>{
-    const docInfo = doctors.find(doc => String(doc.id) === String(docId))
-    console.log(docInfo)
-    setDocInfo(docInfo);
-    
+  // Debug logs
+  console.log('Doctors in context:', doctors);
+  console.log('docId from URL:', docId);
 
+  useEffect(() => {
+    const found = doctors.find(doc => String(doc._id) === String(docId));
+    setDocInfo(found);
+  }, [doctors, docId]);
 
-  }
+  useEffect(() => {
+    if (selectedDate) {
+      setAvailableSlots(generateTimeSlots());
+    } else {
+      setAvailableSlots([]);
+    }
+  }, [selectedDate]);
 
-const getAvailableSlots=async()=>{
-setDocSlots([])
-//getting current date
-let today = new Date();
-for(let i=0;i<7;i++){
-  //getting date with index
-  let currentDate = new Date(today);
-  currentDate.setDate(today.getDate() + i);
-  //setting end time of the date with index
-  let endTime = new Date();
-  endTime.setDate(today.getDate() + i);
-  endTime.setHours(21,0,0,0);
+  const generateTimeSlots = () => {
+    const slots = [];
+    for (let hour = 9; hour <= 17; hour++) {
+      slots.push(`${hour}:00`);
+      if (hour !== 17) slots.push(`${hour}:30`);
+    }
+    return slots;
+  };
 
-  //setting hours
-  if(today.getDate() === currentDate.getDate()){
-    currentDate.setHours(currentDate.getHours() > 10 ? currentDate.getHours() +1: 10);
-    currentDate.setMinutes(currentDate.getMinutes() > 30 ? 30 : 0);
-  }
-  else {
-    currentDate.setHours(10);
-    currentDate.setMinutes(0);
-  }
-  let timeSlots = [];
-  while(currentDate<endTime){
-    let formattedTime= currentDate.toLocaleTimeString([], {hour: '2-digit', minute: '2-digit'});
-    //add slot to array
-    timeSlots.push({
-      datetime: new Date(currentDate),
-      time: formattedTime
-    });
-// increment current time by 30 mins
-currentDate.setMinutes(currentDate.getMinutes() + 30);
-  }
-  setDocSlots(prev=>([...prev,timeSlots]))
-}
-}
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    if (!user) {
+      navigate('/login');
+      return;
+    }
+    if (!selectedDate || !selectedTime) {
+      setError('Please select both date and time');
+      return;
+    }
+    try {
+      await axios.post('http://localhost:5000/api/appointments', {
+        doctorId: docId,
+        doctorName: docInfo.name,
+        date: selectedDate,
+        time: selectedTime,
+        userId: user._id,
+        userName: user.name
+      }, {
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('token')}`
+        }
+      });
+      setNotification('Booking successful!');
+      setTimeout(() => {
+        setNotification('');
+        navigate('/my-appointments');
+      }, 1500);
+    } catch (err) {
+      if (err.response && err.response.status === 409) {
+        setNotification('This slot is already booked. Please select another time.');
+      } else {
+        setError(err.response?.data?.message || 'Failed to book appointment');
+      }
+    }
+  };
 
-  useEffect(()=>{
-    fetchDocInfo()    
-  },[doctors,docId])
+  if (!docInfo) return <div className="text-center mt-8">Doctor not found</div>;
 
-  useEffect(()=>{
-    getAvailableSlots()
-
-  },[docInfo])
-
-  useEffect(()=>{
-    console.log(docSlots)
-
-  },[docSlots])
-
-  return docInfo && (
-    <div>
-      {/*------doctor info------*/}
-      <div className='flex flex-col sm:flex-row gap-4'>
-        <div>
-          <img className='bg-primary w-full sm:max-w-72 rounded-lg' src={docInfo.image} alt="" />
+  return (
+    <div className="container mx-auto px-4 py-8">
+      {notification && (
+        <div className={`mb-4 p-3 rounded text-center ${notification.includes('success') ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>{notification}</div>
+      )}
+      <div className="max-w-3xl mx-auto bg-white rounded-lg shadow p-6 flex flex-col md:flex-row gap-8">
+        <div className="flex-shrink-0">
+          <img src={docInfo.image} alt={docInfo.name} className="w-48 h-48 object-cover rounded-xl border" />
         </div>
-        <div className='flex-1 border border-gray-400 rounded-lg p-8 py-7 bg-white mx-2 sm:mx-0 mt-[-80px] sm:mt-0'>
-          {/*------doctor name------*/} 
-          <p className='flex items-center gap-2 text-2xl font-medium text-gray-900'>{docInfo.name}
-            <img className='w-5' src={assets.verified_icon}alt=''/>
-            </p>
-            <div className='flex items-center gap-2 text-sm mt-1 text-gray-600'>
-              <p>{docInfo.degree} - {docInfo.speciality}</p>
-              <button className='py-0,5 px-2 border text-xs rounded-full'>{docInfo.experience}</button>
-            </div>
-            {/*------doctor about------*/}
+        <div className="flex-1">
+          <h1 className="text-2xl font-bold mb-2">{docInfo.name}</h1>
+          <p className="text-gray-600 mb-2">{docInfo.speciality} | {docInfo.degree} | {docInfo.experience}</p>
+          <p className="mb-4 text-gray-700">{docInfo.about}</p>
+          <p className="mb-2"><span className="font-semibold">Address:</span> {docInfo.address.line1}, {docInfo.address.line2}</p>
+          <p className="mb-2"><span className="font-semibold">Fees:</span> ${docInfo.fees}</p>
+          <form onSubmit={handleSubmit} className="space-y-6 mt-6">
             <div>
-              <p className='flex items-center gap-1 text-sm font-medium text-gray-900 mt-3'>About <img src={assets.info_icon}alt=''/></p>
-            <p className='text-sm text-gray-500 max-w-[700px] mt-1'>{docInfo.about}</p>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Select Date
+              </label>
+              <input
+                type="date"
+                min={new Date().toISOString().split('T')[0]}
+                value={selectedDate}
+                onChange={(e) => setSelectedDate(e.target.value)}
+                className="w-full border rounded-md px-3 py-2"
+                required
+              />
             </div>
-            <p className='text-gray-500 font-medium mt-4'>
-              Appointment fee: <span className='text-gray-600'>{currencySymbol}{docInfo.fees}</span>
-            </p>
-        </div>
-      </div>
-      {/*------doctor slots------*/}
-      <div className='sm:ml-72 sm:pl-4 mt-4 font-medium text-gray-600'>
-        <p>Booking Slots</p>
-        <div className='flex gap-3 items-center w-full overflow-scroll mt-4 '>
-          {
-            docSlots.length > 0 && docSlots.map((item, index) => (
-              <div onClick={()=>setSlotIndex(index)} className={`text-center py-6 min-w-16 rounded-full cursor-pointer ${slotIndex === index ? `bg-primary text-white `: `border border-gray-200`}`} key={index}>
-                <p>{item[0] && daysOfWeek[item[0].datetime.getDay()]}</p>
-                <p>{item[0] && item[0].datetime.getDate()}</p>
+            {selectedDate && (
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Select Time
+                </label>
+                <div className="grid grid-cols-3 gap-2">
+                  {availableSlots.map((slot) => (
+                    <button
+                      key={slot}
+                      type="button"
+                      onClick={() => setSelectedTime(slot)}
+                      className={`p-2 border rounded-md ${selectedTime === slot ? 'bg-blue-500 text-white' : 'hover:bg-gray-100'}`}
+                    >
+                      {slot}
+                    </button>
+                  ))}
+                </div>
               </div>
-            ))
-          }
+            )}
+            {error && (
+              <div className="text-red-600 text-sm">{error}</div>
+            )}
+            <button
+              type="submit"
+              className="w-full bg-blue-500 text-white py-2 rounded-md hover:bg-blue-600"
+              disabled={!selectedDate || !selectedTime}
+            >
+              Book Appointment
+            </button>
+          </form>
         </div>
-        <div className='flex items-start gap-3 w-full overflow-x-scroll mt-4'>
-          {docSlots.length > 0 && docSlots[slotIndex] && docSlots[slotIndex].map((item, index) => (
-            <p onClick={()=>setSlotTime(item.time)} className={`text-sm font-light flex-shrink-0 px-5 py-2 rounded-full cursor-pointer ${item.time === slotTime ?`bg-primary text-white `: `text-gray-400 border border-gray-300`}`} key={index}>
-              {item.time.toLowerCase()}
-            </p>
-          ))}
-        </div>
-        <button className='bg-primary text-white text-sm font-light px-14 py-3 rounded-full my-6'>Book an Appointment</button>
       </div>
-      {/*------related doctors------*/}
-      <RelatedDoctors docId={docId} speciality={docInfo.speciality}/>
     </div>
-  )
-}
+  );
+};
 
 export default Appointment;

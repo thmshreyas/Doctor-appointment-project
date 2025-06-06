@@ -1,28 +1,67 @@
-import React, { useState } from 'react'
-import { assets } from '../assets/assets'
+import React, { useState, useEffect } from 'react'
+import { useAuth } from '../context/AuthContext'
+import { useNavigate } from 'react-router-dom'
+import axios from 'axios'
 
 const MyProfile = () => {
-  const [userData,setUserData]=useState({
-    name:"Edward Vincent",
-    image: assets.profile_pic,
-    email:'richardjameswap@gmail.com',
-    phone:'+1 234 456 7890',
-    address: {
-      line1:"57th Cross , Richmond",
-      line2:"Circle, Church road , London",
-    },
-    gender:"Male",
-    dob:'2000-01-20'
-  })
+  const { user } = useAuth();
+  const navigate = useNavigate();
+  const [isEdit, setIsEdit] = useState(false);
+  const [userData, setUserData] = useState(null);
+  const [error, setError] = useState('');
 
-  const [isEdit,setIsEdit] = useState(false);
+  useEffect(() => {
+    if (!user) {
+      navigate('/login');
+      return;
+    }
+
+    const fetchUserData = async () => {
+      try {
+        const response = await axios.get('http://localhost:5000/api/auth/me', {
+          headers: {
+            'Authorization': `Bearer ${localStorage.getItem('token')}`
+          }
+        });
+        setUserData(response.data);
+      } catch (err) {
+        setError('Failed to fetch user data');
+      }
+    };
+
+    fetchUserData();
+  }, [user, navigate]);
+
+  const handleSave = async () => {
+    try {
+      await axios.put('http://localhost:5000/api/auth/update-profile', userData, {
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('token')}`
+        }
+      });
+      setIsEdit(false);
+    } catch (err) {
+      setError('Failed to update profile');
+    }
+  };
+
+  if (!userData) return <div className="text-center mt-8">Loading...</div>;
+  if (error) return <div className="text-center mt-8 text-red-600">{error}</div>;
+
   return (
     <div className="container mx-auto p-6 max-w-4xl bg-white shadow-md rounded-lg">
       <div className="flex items-center space-x-6 mb-6">
-        <img src={userData.image} alt="Profile" className="w-24 h-24 rounded-full border-2 border-primary" />
+        <div className="w-24 h-24 rounded-full border-2 border-primary bg-gray-200 flex items-center justify-center">
+          <span className="text-2xl text-gray-600">{userData.name.charAt(0)}</span>
+        </div>
         {
-          isEdit?
-          <input type="text" value={userData.name} onChange={e=> setUserData(prev=>({...prev,name:e.target.value}))} className="text-xl font-semibold border-b-2 focus:outline-none" />
+          isEdit ?
+          <input 
+            type="text" 
+            value={userData.name} 
+            onChange={e => setUserData(prev => ({...prev, name: e.target.value}))} 
+            className="text-xl font-semibold border-b-2 focus:outline-none" 
+          />
           : <p className="text-xl font-semibold">{userData.name}</p>
         }
       </div>
@@ -38,20 +77,38 @@ const MyProfile = () => {
             <div>
               <p className="text-sm font-medium">Phone:</p>
               {
-                isEdit?
-                <input type="text" value={userData.phone} onChange={e=> setUserData(prev=>({...prev,phone:e.target.value}))} className="border-b-2 focus:outline-none" />
-                : <p className="text-gray-700">{userData.phone}</p>
+                isEdit ?
+                <input 
+                  type="text" 
+                  value={userData.phone || ''} 
+                  onChange={e => setUserData(prev => ({...prev, phone: e.target.value}))} 
+                  className="border-b-2 focus:outline-none" 
+                />
+                : <p className="text-gray-700">{userData.phone || 'Not set'}</p>
               }
             </div>
             <div>
               <p className="text-sm font-medium">Address:</p>
               {
-                isEdit?
+                isEdit ?
                 <div className="space-y-2">
-                  <input onChange={(e)=>setUserData(prev=>({...prev,address:{...prev.address,line1:e.target.value}}))} value={userData.address.line1} type="text" className="border-b-2 focus:outline-none w-full" />
-                  <input onChange={(e)=>setUserData(prev=>({...prev,address:{...prev.address,line2:e.target.value}}))} value={userData.address.line2} type="text" className="border-b-2 focus:outline-none w-full" />
+                  <input 
+                    onChange={e => setUserData(prev => ({...prev, address: {...prev.address, line1: e.target.value}}))} 
+                    value={userData.address?.line1 || ''} 
+                    type="text" 
+                    className="border-b-2 focus:outline-none w-full" 
+                  />
+                  <input 
+                    onChange={e => setUserData(prev => ({...prev, address: {...prev.address, line2: e.target.value}}))} 
+                    value={userData.address?.line2 || ''} 
+                    type="text" 
+                    className="border-b-2 focus:outline-none w-full" 
+                  />
                 </div>
-                : <p className="text-gray-700">{userData.address.line1}<br />{userData.address.line2}</p>
+                : <p className="text-gray-700">
+                    {userData.address?.line1 || 'Not set'}<br />
+                    {userData.address?.line2 || ''}
+                  </p>
               }
             </div>
           </div>
@@ -62,20 +119,30 @@ const MyProfile = () => {
             <div>
               <p className="text-sm font-medium">Gender:</p>
               {
-                isEdit?
-                <select onChange={(e)=>setUserData(prev=>({...prev,gender:e.target.value}))} value={userData.gender} className="border-b-2 focus:outline-none">
+                isEdit ?
+                <select 
+                  onChange={e => setUserData(prev => ({...prev, gender: e.target.value}))} 
+                  value={userData.gender || ''} 
+                  className="border-b-2 focus:outline-none"
+                >
+                  <option value="">Select Gender</option>
                   <option value="Male">Male</option>
                   <option value="Female">Female</option>
                 </select>
-                : <p className="text-gray-700">{userData.gender}</p>
+                : <p className="text-gray-700">{userData.gender || 'Not set'}</p>
               }
             </div>
             <div>
               <p className="text-sm font-medium">Birthday:</p>
               {
-                isEdit?
-                <input type="date" onChange={(e)=>setUserData(prev=> ({...prev,dob:e.target.value}))} value={userData.dob} className="border-b-2 focus:outline-none" />
-                : <p className="text-gray-700">{userData.dob}</p>
+                isEdit ?
+                <input 
+                  type="date" 
+                  onChange={e => setUserData(prev => ({...prev, dob: e.target.value}))} 
+                  value={userData.dob || ''} 
+                  className="border-b-2 focus:outline-none" 
+                />
+                : <p className="text-gray-700">{userData.dob || 'Not set'}</p>
               }
             </div>
           </div>
@@ -84,12 +151,12 @@ const MyProfile = () => {
       <div className="text-center">
         {
           isEdit ? 
-          <button onClick={()=>setIsEdit(false)} className='bg-primary text-white px-6 py-2 rounded-md hover:bg-primary-dark'>Save</button>
-          : <button onClick={()=>setIsEdit(true)} className='bg-primary text-white px-6 py-2 rounded-md hover:bg-primary-dark'>Edit Profile</button>
+          <button onClick={handleSave} className='bg-primary text-white px-6 py-2 rounded-md hover:bg-primary-dark'>Save</button>
+          : <button onClick={() => setIsEdit(true)} className='bg-primary text-white px-6 py-2 rounded-md hover:bg-primary-dark'>Edit Profile</button>
         }
       </div>
     </div>
-  )
-}
+  );
+};
 
-export default MyProfile
+export default MyProfile;
