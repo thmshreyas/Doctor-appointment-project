@@ -12,6 +12,7 @@ router.post('/', auth, async (req, res) => {
     if (existing) {
       return res.status(409).json({ message: 'This slot is already booked. Please select another time.' });
     }
+    console.log('Appointment Creation: req.user._id before saving:', req.user._id); // Debug log
     const appointment = new Appointment({
       userId: req.user._id,
       doctorName,
@@ -82,5 +83,24 @@ router.delete('/:id', auth, isAdmin, async (req, res) => {
     res.status(500).json({ message: 'Server error' });
   }
 });
+// Delete user's own appointment
+router.delete('/user/:id', auth, async (req, res) => {
+  try {
+    const appointment = await Appointment.findOne({
+      _id: req.params.id,
+      userId: req.user._id  // Make sure it's the owner's appointment
+    });
+
+    if (!appointment) {
+      return res.status(404).json({ message: 'Appointment not found or not authorized' });
+    }
+
+    await Appointment.findByIdAndDelete(req.params.id);
+    res.json({ message: 'Appointment cancelled successfully' });
+  } catch (error) {
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
 
 module.exports = router; 

@@ -93,4 +93,26 @@ router.get('/me', auth, async (req, res) => {
   }
 });
 
+// Update user profile
+router.put('/update-profile', auth, async (req, res) => {
+  try {
+    const updates = req.body;
+
+    // Find the user by ID and update their profile fields
+    const user = await User.findByIdAndUpdate(
+      req.user._id, // User ID from authenticated token
+      { $set: updates }, // Use $set to update specific fields
+      { new: true, runValidators: true } // Return the updated document and run schema validators
+    ).select('-password'); // Exclude password from the returned object
+
+    if (!user) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+
+    res.json(user);
+  } catch (error) {
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
 module.exports = router; 

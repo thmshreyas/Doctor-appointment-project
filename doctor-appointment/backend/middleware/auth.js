@@ -17,6 +17,7 @@ const auth = async (req, res, next) => {
     }
 
     req.user = user;
+    console.log('Auth Middleware: req.user._id set to', req.user._id);
     next();
   } catch (error) {
     res.status(401).json({ message: 'Token is invalid' });

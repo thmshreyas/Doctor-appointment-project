@@ -4,11 +4,12 @@ import { useNavigate } from 'react-router-dom'
 import axios from 'axios'
 
 const MyProfile = () => {
-  const { user } = useAuth();
+  const { user, fetchUserData } = useAuth();
   const navigate = useNavigate();
   const [isEdit, setIsEdit] = useState(false);
   const [userData, setUserData] = useState(null);
   const [error, setError] = useState('');
+  const [notification, setNotification] = useState('');
 
   useEffect(() => {
     if (!user) {
@@ -16,7 +17,7 @@ const MyProfile = () => {
       return;
     }
 
-    const fetchUserData = async () => {
+    const loadUserData = async () => {
       try {
         const response = await axios.get('http://localhost:5000/api/auth/me', {
           headers: {
@@ -29,19 +30,32 @@ const MyProfile = () => {
       }
     };
 
-    fetchUserData();
+    loadUserData();
   }, [user, navigate]);
 
   const handleSave = async () => {
     try {
+      const token = localStorage.getItem('token');
+      if (!token) {
+        setNotification('Please log in to save your profile.');
+        return;
+      }
+
       await axios.put('http://localhost:5000/api/auth/update-profile', userData, {
         headers: {
-          'Authorization': `Bearer ${localStorage.getItem('token')}`
+          'Authorization': `Bearer ${token}`
         }
       });
+      
+      setNotification('Profile updated successfully!');
       setIsEdit(false);
+      if (user && token) {
+        await fetchUserData(token); 
+      }
+      setTimeout(() => setNotification(''), 2000);
     } catch (err) {
-      setError('Failed to update profile');
+      setNotification(err.response?.data?.message || 'Failed to update profile.');
+      setTimeout(() => setNotification(''), 3000);
     }
   };
 
@@ -50,6 +64,9 @@ const MyProfile = () => {
 
   return (
     <div className="container mx-auto p-6 max-w-4xl bg-white shadow-md rounded-lg">
+      {notification && (
+        <div className={`mb-4 p-3 rounded text-center ${notification.includes('success') ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>{notification}</div>
+      )}
       <div className="flex items-center space-x-6 mb-6">
         <div className="w-24 h-24 rounded-full border-2 border-primary bg-gray-200 flex items-center justify-center">
           <span className="text-2xl text-gray-600">{userData.name.charAt(0)}</span>
@@ -58,7 +75,7 @@ const MyProfile = () => {
           isEdit ?
           <input 
             type="text" 
-            value={userData.name} 
+            value={userData.name || ''} 
             onChange={e => setUserData(prev => ({...prev, name: e.target.value}))} 
             className="text-xl font-semibold border-b-2 focus:outline-none" 
           />
