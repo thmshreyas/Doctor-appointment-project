@@ -1,6 +1,6 @@
 
 
-# Doctor Appointment Booking System
+# Doctor Appointment Booking System - PRESCRIPTO
 
 A full-stack web application for booking doctor appointments, featuring user and admin dashboards, secure authentication, and real-time scheduling. Built with React.js, Node.js, Express, and MongoDB.
 
